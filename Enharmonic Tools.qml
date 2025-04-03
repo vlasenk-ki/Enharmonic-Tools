@@ -12,7 +12,11 @@ MuseScore {
     menuPath: "Plugins.Enharmonic Tools.Enharmonic Tools"
     description: "A plugin for managing enharmonic spellings in chords and notes. Author: Konstantin Vlasenko."
 
-    property bool debug: true // Global flag to enable or disable logging
+    Component.onCompleted: {
+        console.log("Enharmonic Tools plugin loaded.");
+    }
+
+    property bool debug: false // Global flag to enable or disable logging
 
     function log(message) {
         if (debug) {
@@ -85,9 +89,7 @@ MuseScore {
 
     property var sharpListNT: [25,26]
 
-    Component.onCompleted: {
 
-    }
 
     // Function to add an item to a list
     function addToList(list, item) {

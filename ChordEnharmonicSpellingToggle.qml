@@ -7,6 +7,11 @@ MuseScore {
     id: chordEnharmonicSpellingToggle
     version: "0.2"
 
+    Component.onCompleted: {
+        // Automatically load the plugin when MuseScore starts
+        console.log("Toggle Enharmonic Spelling For A Chord plugin loaded.");
+    }
+
     onRun: {
 
         var doubleSharpList = [

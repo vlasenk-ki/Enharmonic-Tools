@@ -8,11 +8,11 @@ import MuseScore 3.0
 
 MuseScore {
     id: enharmonicTools
-    version: "0.2"
-    menuPath: "Plugins.Enharmonic Tools"
+    version: "0.3"
+    menuPath: "Plugins.Enharmonic Tools.Enharmonic Tools"
     description: "A plugin for managing enharmonic spellings in chords and notes. Author: Konstantin Vlasenko."
 
-    property bool debug: false // Global flag to enable or disable logging
+    property bool debug: true // Global flag to enable or disable logging
 
     function log(message) {
         if (debug) {
@@ -20,38 +20,48 @@ MuseScore {
         }
     }
 
+    // TPC Matrix for reference
+    //   -1: Fbb |  6: Fb | 13: F | 20: F# | 27: F##
+    //    0: Cbb |  7: Cb | 14: C | 21: C# | 28: C##
+    //    1: Gbb |  8: Gb | 15: G | 22: G# | 29: G##
+    //    2: Dbb |  9: Db | 16: D | 23: D# | 30: D##
+    //    3: Abb | 10: Ab | 17: A | 24: A# | 31: A##
+    //    4: Ebb | 11: Eb | 18: E | 25: E# | 32: E##
+    //    5: Bbb | 12: Bb | 19: B | 26: B# | 33: B##
+
+
     property var firstColumnPairs: [
-        ["Db", "C#"],
-        ["Eb", "D#"],
-        ["Gb", "F#"],
-        ["Ab", "G#"],
-        ["Bb", "A#"]
+        ["Db", "C#", 9],
+        ["Eb", "D#", 11],
+        ["Gb", "F#", 8],
+        ["Ab", "G#", 10],
+        ["Bb", "A#", 12]
     ]
     
     property var secondColumnPairs: [
-        ["C#", "Db"],
-        ["D#", "Eb"],
-        ["F#", "Gb"],
-        ["G#", "Ab"],
-        ["A#", "Bb"]
+        ["C#", "Db", 21],
+        ["D#", "Eb", 23],
+        ["F#", "Gb", 20],
+        ["G#", "Ab", 22],
+        ["A#", "Bb", 24]
     ]
 
-    property var firstColumnCheckBoxes: []
-    property var secondColumnCheckBoxes: []
+    property var firstColumnCheckBoxesCH: [] // For storing chords checkboxes
+    property var secondColumnCheckBoxesCH: [] // For storing chords checkboxes 
 
-    property var firstColumnNoteCheckBoxes: []  // For notes
-    property var secondColumnNoteCheckBoxes: []  // For notes
+    property var firstColumnCheckBoxesNT: []  // For storing notes checkboxes
+    property var secondColumnCheckBoxesNT: []  // For storing notes checkboxes
 
-    // Data models for enharmonic pairs
-    property var flatList: [
+    // Data models for enharmonic pairs (CHORDS)
+    property var flatListCH: [
         ["Cb", "B"],
         ["Fb", "E"]
     ]
-    property var sharpList: [
+    property var sharpListCH: [
         ["E#", "F"],
         ["B#", "C"]
     ]
-    property var doubleSharpList: [
+    property var doublesharpListCH: [
         ["C##", "D"],
         ["D##", "E"],
         ["E##", "F#"],
@@ -60,7 +70,7 @@ MuseScore {
         ["A##", "B"],
         ["B##", "C#"]
     ]
-    property var doubleFlatList: [
+    property var doubleflatListCH: [
         ["Cbb", "Bb"],
         ["Dbb", "C"],
         ["Ebb", "D"],
@@ -70,44 +80,52 @@ MuseScore {
         ["Bbb", "A"]
     ]
 
+    // Data models for enharmonic pairs (NOTES)
+    property var flatListNT: [7,6]
+
+    property var sharpListNT: [25,26]
+
     Component.onCompleted: {
-        log("Prepopulated flatList:", flatList);
-        log("Prepopulated sharpList:", sharpList);
-        log("Prepopulated doubleSharpList:", doubleSharpList);
-        log("Prepopulated doubleFlatList:", doubleFlatList);
+
     }
 
-    // Function to add or remove items from a list
-    function updateList(list, pair, checked) {
-        if (checked) {
-            if (!list.includes(pair)) {
-                list.push(pair);
+    // Function to add an item to a list
+    function addToList(list, item) {
+        // Check if the list is a 2D array of strings
+        if (Array.isArray(item) && typeof item[0] === "string") {
+            list.push(item); // Directly add the pair
+            log("Added pair: " + item + " Updated list: " + JSON.stringify(list));
+        }
+        // Check if the list is a 1D array of numbers
+        else if (typeof item === "number") {
+            list.push(item); // Directly add the number
+            log("Added number: " + item + " Updated list: " + JSON.stringify(list));
+        } else {
+            log("Invalid item type for addToList: " + item);
+        }
+    }
+
+    // Function to remove an item from a list
+    function removeFromList(list, item) {
+        // Check if the list is a 2D array of strings
+        if (Array.isArray(item) && typeof item[0] === "string") {
+            var index = list.findIndex(function(pair) {
+                return pair[0] === item[0] && pair[1] === item[1];
+            });
+            if (index !== -1) {
+                list.splice(index, 1); // Remove the pair
+                log("Removed pair: " + item + " Updated list: " + JSON.stringify(list));
+            }
+        }
+        // Check if the list is a 1D array of numbers
+        else if (typeof item === "number") {
+            var index = list.indexOf(item);
+            if (index !== -1) {
+                list.splice(index, 1); // Remove the number
+                log("Removed number: " + item + " Updated list: " + JSON.stringify(list));
             }
         } else {
-            var index = list.indexOf(pair);
-            if (index !== -1) {
-                list.splice(index, 1);
-            }
-        }
-        log("Updated list:", list);
-    }
-
-    // Function to add a pair to a list
-    function addToList(list, pair) {
-        if (!list.some(function(item) { return item[0] === pair[0] && item[1] === pair[1]; })) {
-            list.push(pair);
-            log("Added pair: " + pair + " Updated list: " + list);
-        }
-    }
-
-    // Function to remove a pair from a list
-    function removeFromList(list, pair) {
-        var index = list.findIndex(function(item) {
-            return item[0] === pair[0] && item[1] === pair[1];
-        });
-        if (index !== -1) {
-            list.splice(index, 1);
-            log("Removed pair: " + pair + " Updated list: " + list);
+            log("Invalid item type for removeFromList: " + item);
         }
     }
 
@@ -118,7 +136,7 @@ MuseScore {
     }
 
     onRun: {
-    enharmonicDialog.visible = true;
+        enharmonicDialog.visible = true;
     }
 
     Dialog {
@@ -156,31 +174,32 @@ MuseScore {
 
                             // Left column for "b to #" checkbox
                             CheckBox {
-                                id: allBtoSharp
+                                id: globalFlatToSharpCH
                                 text: "All b → #"
                                 Layout.alignment: Qt.AlignLeft
                                 onCheckedChanged: {
-                                    setColumnChecked(firstColumnCheckBoxes, checked);
+                                    setColumnChecked(firstColumnCheckBoxesCH, checked);
                                     if (checked) {
-                                        allSharpToB.checked = false;
+                                        globalSharpToFlatCH.checked = false;
                                     }
                                 }
                             }
 
                             // Right column for "# to b" checkbox
                             CheckBox {
-                                id: allSharpToB
+                                id: globalSharpToFlatCH
                                 text: "All # → b"
                                 Layout.alignment: Qt.AlignRight
                                 onCheckedChanged: {
-                                    setColumnChecked(secondColumnCheckBoxes, checked);
+                                    setColumnChecked(secondColumnCheckBoxesCH, checked);
                                     if (checked) {
-                                        allBtoSharp.checked = false;
+                                        globalFlatToSharpCH.checked = false;
                                     }
                                 }
                             }
                         }
 
+                        // Separator line
                         Rectangle {
                             height: 1 // Adjust the height to control the spacing
                             color: "dimgrey" // Ensure it doesn't affect the layout visually
@@ -208,13 +227,13 @@ MuseScore {
                                         Layout.fillWidth: true
                                         onCheckedChanged: {
                                             if (checked) {
-                                                addToList(flatList, [modelData[0], modelData[1]]);
+                                                addToList(flatListCH, [modelData[0], modelData[1]]);
                                                 secondOption.checked = false;
                                             } else {
-                                                removeFromList(flatList, [modelData[0], modelData[1]]);
+                                                removeFromList(flatListCH, [modelData[0], modelData[1]]);
                                             }
                                         }
-                                        Component.onCompleted: firstColumnCheckBoxes.push(firstOption)
+                                        Component.onCompleted: firstColumnCheckBoxesCH.push(firstOption)
                                     }
 
                                     // Checkbox for the second column
@@ -225,13 +244,13 @@ MuseScore {
                                         Layout.fillWidth: true
                                         onCheckedChanged: {
                                             if (checked) {
-                                                addToList(sharpList, [secondColumnPairs[index][0], secondColumnPairs[index][1]]);
+                                                addToList(sharpListCH, [secondColumnPairs[index][0], secondColumnPairs[index][1]]);
                                                 firstOption.checked = false;
                                             } else {
-                                                removeFromList(sharpList, [secondColumnPairs[index][0], secondColumnPairs[index][1]]);
+                                                removeFromList(sharpListCH, [secondColumnPairs[index][0], secondColumnPairs[index][1]]);
                                             }
                                         }
-                                        Component.onCompleted: secondColumnCheckBoxes.push(secondOption)
+                                        Component.onCompleted: secondColumnCheckBoxesCH.push(secondOption)
                                     }
                                 }
                             }
@@ -257,29 +276,30 @@ MuseScore {
 
                             // Left column for "b to #" checkbox
                             CheckBox {
-                                id: allBtoSharpNotes
+                                id: globalFlatToSharpNT
                                 text: "All b → #"
                                 onCheckedChanged: {
-                                    setColumnChecked(firstColumnNoteCheckBoxes, checked);
+                                    setColumnChecked(firstColumnCheckBoxesNT, checked);
                                     if (checked) {
-                                        allSharpToBNotes.checked = false;
+                                        globalSharpToFlatNT.checked = false;
                                     }
                                 }
                             }
 
                             // Right column for "# to b" checkbox
                             CheckBox {
-                                id: allSharpToBNotes
+                                id: globalSharpToFlatNT
                                 text: "All # → b"
                                 onCheckedChanged: {
-                                    setColumnChecked(secondColumnNoteCheckBoxes, checked);
+                                    setColumnChecked(secondColumnCheckBoxesNT, checked);
                                     if (checked) {
-                                        allBtoSharpNotes.checked = false;
+                                        globalFlatToSharpNT.checked = false;
                                     }
                                 }
                             }
                         }
 
+                        // Separator line
                         Rectangle {
                             height: 1 // Adjust the height to control the spacing
                             color: "dimgrey" // Ensure it doesn't affect the layout visually
@@ -305,10 +325,16 @@ MuseScore {
                                         Layout.alignment: Qt.AlignLeft
                                         Layout.fillWidth: true
                                         onCheckedChanged: {
-                                            if (!checked) allBtoSharpNotes.checked = false;
-                                            if (checked) secondNoteOption.checked = false;
+                                            if (!checked) {
+                                                removeFromList(flatListNT, modelData[2]);
+                                                globalFlatToSharpNT.checked = false;
+                                            }
+                                            if (checked) {
+                                                addToList(flatListNT, modelData[2]);
+                                                secondNoteOption.checked = false;
+                                            }
                                         }
-                                        Component.onCompleted: firstColumnNoteCheckBoxes.push(firstNoteOption)
+                                        Component.onCompleted: firstColumnCheckBoxesNT.push(firstNoteOption)
                                     }
 
                                     // Checkbox for the second column
@@ -318,10 +344,16 @@ MuseScore {
                                         Layout.alignment: Qt.AlignLeft
                                         Layout.fillWidth: true
                                         onCheckedChanged: {
-                                            if (!checked) allSharpToBNotes.checked = false;
-                                            if (checked) firstNoteOption.checked = false;
+                                            if (!checked) {
+                                                removeFromList(sharpListNT, secondColumnPairs[index][2]);
+                                                globalSharpToFlatNT.checked = false;
+                                                }
+                                            if (checked) {
+                                                firstNoteOption.checked = false;
+                                                addToList(sharpListNT, secondColumnPairs[index][2]);
+                                            }
                                         }
-                                        Component.onCompleted: secondColumnNoteCheckBoxes.push(secondNoteOption)
+                                        Component.onCompleted: secondColumnCheckBoxesNT.push(secondNoteOption)
                                     }
                                 }
                             }
@@ -359,9 +391,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(flatList, ["Cb", "B"]);
+                                            addToList(flatListCH, ["Cb", "B"]);
                                         } else {
-                                            removeFromList(flatList, ["Cb", "B"]);
+                                            removeFromList(flatListCH, ["Cb", "B"]);
                                         }
                                     }
                                 }
@@ -371,9 +403,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(flatList, ["Fb", "E"]);
+                                            addToList(flatListCH, ["Fb", "E"]);
                                         } else {
-                                            removeFromList(flatList, ["Fb", "E"]);
+                                            removeFromList(flatListCH, ["Fb", "E"]);
                                         }
                                     }
                                 }
@@ -389,9 +421,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(sharpList, ["E#", "F"]);
+                                            addToList(sharpListCH, ["E#", "F"]);
                                         } else {
-                                            removeFromList(sharpList, ["E#", "F"]);
+                                            removeFromList(sharpListCH, ["E#", "F"]);
                                         }
                                     }
                                 }
@@ -401,9 +433,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(sharpList, ["B#", "C"]);
+                                            addToList(sharpListCH, ["B#", "C"]);
                                         } else {
-                                            removeFromList(sharpList, ["B#", "C"]);
+                                            removeFromList(sharpListCH, ["B#", "C"]);
                                         }
                                     }
                                 }
@@ -434,11 +466,25 @@ MuseScore {
                                 CheckBox {
                                     text: "Cb → B"
                                     checked: true
+                                    onCheckedChanged: {
+                                        if (checked) {
+                                            addToList(flatListNT, 7);
+                                        } else {
+                                            removeFromList(flatListNT, 7);
+                                        }
+                                    }
                                 }
 
                                 CheckBox {
                                     text: "Fb → E"
                                     checked: true
+                                    onCheckedChanged: {
+                                        if (checked) {
+                                            addToList(flatListNT, 6);
+                                        } else {
+                                            removeFromList(flatListNT, 6);
+                                        }
+                                    }
                                 }
                             }
 
@@ -450,11 +496,25 @@ MuseScore {
                                 CheckBox {
                                     text: "E# → F"
                                     checked: true
+                                    onCheckedChanged: {
+                                        if (checked) {
+                                            addToList(sharpListNT, 25);
+                                        } else {
+                                            removeFromList(sharpListNT, 25);
+                                        }
+                                    }
                                 }
 
                                 CheckBox {
                                     text: "B# → C"
                                     checked: true
+                                    onCheckedChanged: {
+                                        if (checked) {
+                                            addToList(sharpListNT, 26);
+                                        } else {
+                                            removeFromList(sharpListNT, 26);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -462,28 +522,32 @@ MuseScore {
                 }
             }
 
-            // Checkboxes for changing spelling outside of frames
+            // Checkboxes for changing spelling of double accidentals
             ColumnLayout {
                 spacing: 5
-                Layout.alignment: Qt.AlignLeft// Center the checkboxes horizontally
+                Layout.alignment: Qt.AlignLeft
 
                 CheckBox {
-                    id: changeChordsSpelling
+                    id: doubleAccidentalsCheckCH
                     text: "Change chords spelling for ##/bb"
                     checked: true
                 }
 
                 CheckBox {
-                    id: changeNotesSpelling
+                    id: doubleAccidentalsCheckNT
                     text: "Change notes spelling for ##/bb"
                     checked: true
                 }
             }        
         }
 
-        onAccepted: {
-            log("Dialog accepted");
+        onRejected: {
+            log("Dialog rejected");
+            enharmonicDialog.visible = false;
+            (typeof(quit) === 'undefined' ? Qt.quit : quit)(); // Version-agnostic quit
+        }
 
+        onAccepted: {
             // check if selection exists. If not – quit
                     if (typeof curScore.selection.elements[0] === 'undefined') {
                         log ("Nothing is selected");
@@ -497,7 +561,7 @@ MuseScore {
 
                         var scoreElement = curScore.selection.elements[elCount];
 
-                        // If element is of type HARMONY - replace all the matching extensions with proper formatted ones
+                        // If element is of type HARMONY - respell chords
                         if (scoreElement.type == Element.HARMONY){
                             
                             var enharmFind = "";
@@ -506,12 +570,12 @@ MuseScore {
 
                             //check and replace double sharps
                             var i = 0;
-                            while ((chordText.search("##") > -1) && (i < doubleSharpList.length)) {
+                            while ((chordText.search("##") > -1) && (i < doublesharpListCH.length)) {
 
-                                    enharmFind = RegExp(doubleSharpList[i][0], 'gi'); //make a regular exppression for a case-insensitive replace call
-                                    enharmReplace = doubleSharpList[i][1];
+                                    enharmFind = RegExp(doublesharpListCH[i][0], 'gi'); //make a regular exppression for a case-insensitive replace call
+                                    enharmReplace = doublesharpListCH[i][1];
 
-                                    log ("Checking chord " + chordText + " for match: " + doubleSharpList[i][0] + " – " + enharmReplace);        
+                                    log ("Checking chord " + chordText + " for match: " + doublesharpListCH[i][0] + " – " + enharmReplace);        
 
                                     chordText = chordText.replace(enharmFind, enharmReplace);
                                     scoreElement.text = chordText;
@@ -521,12 +585,12 @@ MuseScore {
                             
                             // check and replace double flats
                             i = 0;
-                            while ((chordText.search("bb") > -1) && (i < doubleFlatList.length)) {
+                            while ((chordText.search("bb") > -1) && (i < doubleflatListCH.length)) {
 
-                                    enharmFind = RegExp(doubleFlatList[i][0], 'gi');
-                                    enharmReplace = doubleFlatList[i][1];
+                                    enharmFind = RegExp(doubleflatListCH[i][0], 'gi');
+                                    enharmReplace = doubleflatListCH[i][1];
 
-                                    log ("Checking chord " + chordText + " for match: " + doubleFlatList[i][0] + " – " + enharmReplace);        
+                                    log ("Checking chord " + chordText + " for match: " + doubleflatListCH[i][0] + " – " + enharmReplace);        
 
                                     chordText = chordText.replace(enharmFind, enharmReplace);
                                     scoreElement.text = chordText;
@@ -542,12 +606,12 @@ MuseScore {
 
                             if ((chordText.substr(1,1) == "#" || chordText.substr(chordText.length - 1,1) == "#")) {
                             
-                                while (i < sharpList.length) {
+                                while (i < sharpListCH.length) {
 
-                                        enharmFind = RegExp(sharpList[i][0], 'gi');
-                                        enharmReplace = sharpList[i][1];
+                                        enharmFind = RegExp(sharpListCH[i][0], 'gi');
+                                        enharmReplace = sharpListCH[i][1];
 
-                                        log ("Checking chord " + chordText + " for match: " + sharpList[i][0] + " – " + enharmReplace);        
+                                        log ("Checking chord " + chordText + " for match: " + sharpListCH[i][0] + " – " + enharmReplace);        
 
                                         chordText = chordText.replace(enharmFind, enharmReplace);
                                         scoreElement.text = chordText;
@@ -557,12 +621,12 @@ MuseScore {
 
                             //check and replace flats
                             } else if ((chordText.substr(1,1) == "b" || chordText.substr(chordText.length - 1,1) == "b")) {
-                                while ((i < flatList.length)) {
+                                while ((i < flatListCH.length)) {
 
-                                    enharmFind = RegExp(flatList[i][0], "gi");
-                                    enharmReplace = flatList[i][1];
+                                    enharmFind = RegExp(flatListCH[i][0], "gi");
+                                    enharmReplace = flatListCH[i][1];
 
-                                    log ("Checking chord " + chordText + " for match: " + flatList[i][0] + " – " + enharmReplace);        
+                                    log ("Checking chord " + chordText + " for match: " + flatListCH[i][0] + " – " + enharmReplace);        
 
                                     chordText = chordText.replace(enharmFind, enharmReplace, 0);
                                     scoreElement.text = chordText;
@@ -570,22 +634,34 @@ MuseScore {
                                     ++i;
                                 }
                             }                
+                        } else if (scoreElement.type == Element.NOTE) { // If element is of type NOTE - respell  notes
+                            var note = scoreElement;
+
+                            if (doubleAccidentalsCheckNT.checked == true){
+                                if (scoreElement.tpc >= -1 && scoreElement.tpc <= 5) { //Check for doubleFlats
+                                    scoreElement.tpc = scoreElement.tpc + 12;
+                                } else if (scoreElement.tpc >= 27 && scoreElement.tpc <= 33) { //Check for doubleSharps
+                                    scoreElement.tpc = scoreElement.tpc - 12;
+                                }
+                            }
+
+                            if ((scoreElement.tpc >= 6 && scoreElement.tpc <= 12) && (flatListNT.indexOf(scoreElement.tpc) !== -1)) { //Check for flats
+                                scoreElement.tpc = scoreElement.tpc + 12;
+                            } else if ((scoreElement.tpc >= 20 && scoreElement.tpc <= 26) && (sharpListNT.indexOf(scoreElement.tpc) !== -1)) { //Check for sharps
+                                scoreElement.tpc = scoreElement.tpc - 12;
+                            }
                         }
-                        ++elCount; //next element in the selection
+                    //next element in the selection
+                    ++elCount;
                     }
-                        // End the command
-                        curScore.endCmd();
+
+
+                    // End the command
+                    curScore.endCmd();
                     
 
-            enharmonicDialog.visible = false;
-            (typeof(quit) === 'undefined' ? Qt.quit : quit)(); // Version-agnostic quit// Perform any additional actions after acceptancequ
-        }
-
-        onRejected: {
-            log("Dialog rejected");
-            enharmonicDialog.visible = false;
-            (typeof(quit) === 'undefined' ? Qt.quit : quit)(); // Version-agnostic quit
+                    enharmonicDialog.visible = false;
+                    (typeof(quit) === 'undefined' ? Qt.quit : quit)(); // Version-agnostic quit
         }
     }
 }
-

@@ -8,7 +8,7 @@ import MuseScore 3.0
 
 MuseScore {
     id: enharmonicTools
-    version: "0.3"
+    version: "0.4"
     menuPath: "Plugins.Enharmonic Tools.Enharmonic Tools"
     description: "A plugin for managing enharmonic spellings in chords and notes. Author: Konstantin Vlasenko."
 
@@ -16,7 +16,7 @@ MuseScore {
         console.log("Enharmonic Tools plugin loaded.");
     }
 
-    property bool debug: false // Global flag to enable or disable logging
+    property bool debug: true // Global flag to enable or disable logging
 
     function log(message) {
         if (debug) {
@@ -33,6 +33,43 @@ MuseScore {
     //    4: Ebb | 11: Eb | 18: E | 25: E# | 32: E##
     //    5: Bbb | 12: Bb | 19: B | 26: B# | 33: B##
 
+    property var tpcMatrix: [
+        { tpc: -1, note: "Fbb" },
+        { tpc: 0, note: "Cbb" },
+        { tpc: 1, note: "Gbb" },
+        { tpc: 2, note: "Dbb" },
+        { tpc: 3, note: "Abb" },
+        { tpc: 4, note: "Ebb" },
+        { tpc: 5, note: "Bbb" },
+        { tpc: 6, note: "Fb" },
+        { tpc: 7, note: "Cb" },
+        { tpc: 8, note: "Gb" },
+        { tpc: 9, note: "Db" },
+        { tpc: 10, note: "Ab" },
+        { tpc: 11, note: "Eb" },
+        { tpc: 12, note: "Bb" },
+        { tpc: 13, note: "F" },
+        { tpc: 14, note: "C" },
+        { tpc: 15, note: "G" },
+        { tpc: 16, note: "D" },
+        { tpc: 17, note: "A" },
+        { tpc: 18, note: "E" },
+        { tpc: 19, note: "B" },
+        { tpc: 20, note: "F#" },
+        { tpc: 21, note: "C#" },
+        { tpc: 22, note: "G#" },
+        { tpc: 23, note: "D#" },
+        { tpc: 24, note: "A#" },
+        { tpc: 25, note: "E#" },
+        { tpc: 26, note: "B#" },
+        { tpc: 27, note: "F##" },
+        { tpc: 28, note: "C##" },
+        { tpc: 29, note: "G##" },
+        { tpc: 30, note: "D##" },
+        { tpc: 31, note: "A##" },
+        { tpc: 32, note: "E##" },
+        { tpc: 33, note: "B##" }
+    ]
 
     property var firstColumnPairs: [
         ["Db", "C#", 9],
@@ -57,79 +94,66 @@ MuseScore {
     property var secondColumnCheckBoxesNT: []  // For storing notes checkboxes
 
     // Data models for enharmonic pairs (CHORDS)
-    property var flatListCH: [
-        ["Cb", "B"],
-        ["Fb", "E"]
-    ]
-    property var sharpListCH: [
-        ["E#", "F"],
-        ["B#", "C"]
-    ]
-    property var doublesharpListCH: [
-        ["C##", "D"],
-        ["D##", "E"],
-        ["E##", "F#"],
-        ["F##", "G"],
-        ["G##", "A"],
-        ["A##", "B"],
-        ["B##", "C#"]
-    ]
-    property var doubleflatListCH: [
-        ["Cbb", "Bb"],
-        ["Dbb", "C"],
-        ["Ebb", "D"],
-        ["Fbb", "Eb"],
-        ["Gbb", "F"],
-        ["Abb", "G"],
-        ["Bbb", "A"]
-    ]
+    property var flatListCH: [7,6]
+    property var sharpListCH: [25,26]
 
     // Data models for enharmonic pairs (NOTES)
     property var flatListNT: [7,6]
-
     property var sharpListNT: [25,26]
 
+    // Split the chord into main chord and bass note
+    function splitChord(chordText) {
+        // Split the chord into main chord and bass note
+        var chordParts = chordText.split("/");
+        var mainChord = chordParts[0]; // Main chord (e.g., "Cb7b9")
+        var bass = chordParts.length > 1 ? chordParts[1] : ""; // Bass note (e.g., "Gb")
 
+        // Extract the root and extension from the main chord
+        var rootMatch = mainChord.match(/^[A-Ga-g][#b]{0,2}/); // Match root (e.g., "Cb", "C#", "F##")
+        var root = rootMatch ? rootMatch[0] : ""; // Extract root
+        var extension = mainChord.slice(root.length); // Remaining part is the extension (e.g., "7b9")
 
+        // Return the components
+        return {
+            mainChord: mainChord,
+            bass: bass,
+            root: root,
+            extension: extension,
+        };
+    }
+
+    function getNoteByTPC(tpc) {
+        var entry = tpcMatrix.find(function(item) {
+            return item.tpc === tpc;
+        });
+        
+        return entry ? entry.note : null; // Return the note name or null if not found
+    }
+
+    function getTPCByNote(note) {
+        var entry = tpcMatrix.find(function(item) {
+            return item.note === note;
+        });
+
+        return entry ? entry.tpc : null; // Return the TPC number or null if not found
+    }
+    
     // Function to add an item to a list
     function addToList(list, item) {
-        // Check if the list is a 2D array of strings
-        if (Array.isArray(item) && typeof item[0] === "string") {
             list.push(item); // Directly add the pair
-            log("Added pair: " + item + " Updated list: " + JSON.stringify(list));
-        }
-        // Check if the list is a 1D array of numbers
-        else if (typeof item === "number") {
-            list.push(item); // Directly add the number
-            log("Added number: " + item + " Updated list: " + JSON.stringify(list));
-        } else {
-            log("Invalid item type for addToList: " + item);
-        }
+            log("Added TPC: " + item + " Updated list: " + JSON.stringify(list));
     }
 
     // Function to remove an item from a list
     function removeFromList(list, item) {
-        // Check if the list is a 2D array of strings
-        if (Array.isArray(item) && typeof item[0] === "string") {
-            var index = list.findIndex(function(pair) {
-                return pair[0] === item[0] && pair[1] === item[1];
-            });
-            if (index !== -1) {
-                list.splice(index, 1); // Remove the pair
-                log("Removed pair: " + item + " Updated list: " + JSON.stringify(list));
-            }
-        }
-        // Check if the list is a 1D array of numbers
-        else if (typeof item === "number") {
-            var index = list.indexOf(item);
-            if (index !== -1) {
-                list.splice(index, 1); // Remove the number
-                log("Removed number: " + item + " Updated list: " + JSON.stringify(list));
-            }
+        var index = list.indexOf(item);
+        if (index !== -1) {
+            list.splice(index, 1); // Remove the number
+            log("Removed TPC: " + item + " Updated list: " + JSON.stringify(list));
         } else {
-            log("Invalid item type for removeFromList: " + item);
-        }
+            log("TPC " + item + " is not in the list.");
     }
+}
 
     function setColumnChecked(column, checked) {
         for (var i = 0; i < column.length; i++) {
@@ -229,10 +253,10 @@ MuseScore {
                                         Layout.fillWidth: true
                                         onCheckedChanged: {
                                             if (checked) {
-                                                addToList(flatListCH, [modelData[0], modelData[1]]);
+                                                addToList(flatListCH, modelData[2]);
                                                 secondOption.checked = false;
                                             } else {
-                                                removeFromList(flatListCH, [modelData[0], modelData[1]]);
+                                                removeFromList(flatListCH, modelData[2]);
                                             }
                                         }
                                         Component.onCompleted: firstColumnCheckBoxesCH.push(firstOption)
@@ -246,10 +270,10 @@ MuseScore {
                                         Layout.fillWidth: true
                                         onCheckedChanged: {
                                             if (checked) {
-                                                addToList(sharpListCH, [secondColumnPairs[index][0], secondColumnPairs[index][1]]);
+                                                addToList(sharpListCH, secondColumnPairs[index][2]);
                                                 firstOption.checked = false;
                                             } else {
-                                                removeFromList(sharpListCH, [secondColumnPairs[index][0], secondColumnPairs[index][1]]);
+                                                removeFromList(sharpListCH, secondColumnPairs[index][2]);                                             
                                             }
                                         }
                                         Component.onCompleted: secondColumnCheckBoxesCH.push(secondOption)
@@ -393,9 +417,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(flatListCH, ["Cb", "B"]);
+                                            addToList(flatListCH, 7);
                                         } else {
-                                            removeFromList(flatListCH, ["Cb", "B"]);
+                                            removeFromList(flatListCH, 7);
                                         }
                                     }
                                 }
@@ -405,9 +429,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(flatListCH, ["Fb", "E"]);
+                                            addToList(flatListCH, 6);
                                         } else {
-                                            removeFromList(flatListCH, ["Fb", "E"]);
+                                            removeFromList(flatListCH, 6);
                                         }
                                     }
                                 }
@@ -423,9 +447,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(sharpListCH, ["E#", "F"]);
+                                            addToList(sharpListCH, 25);
                                         } else {
-                                            removeFromList(sharpListCH, ["E#", "F"]);
+                                            removeFromList(sharpListCH, 25);
                                         }
                                     }
                                 }
@@ -435,9 +459,9 @@ MuseScore {
                                     checked: true
                                     onCheckedChanged: {
                                         if (checked) {
-                                            addToList(sharpListCH, ["B#", "C"]);
+                                            addToList(sharpListCH, 26);
                                         } else {
-                                            removeFromList(sharpListCH, ["B#", "C"]);
+                                            removeFromList(sharpListCH, 26);
                                         }
                                     }
                                 }
@@ -566,83 +590,132 @@ MuseScore {
                         // If element is of type HARMONY - respell chords
                         if (scoreElement.type == Element.HARMONY){
                             
-                            var enharmFind = "";
-                            var enharmReplace = "";
-                            var chordText = scoreElement.text.toString();
+                            var chordText = scoreElement.text;
+                            var chordRoot = splitChord(chordText).root;
+                            var chordExtension = splitChord(chordText).extension;
+                            var chordBass = splitChord(chordText).bass;
+
+                            var chordRootTPC = getTPCByNote(chordRoot);
+                            var chordBassTPC = getTPCByNote(chordBass);
+
+                            log("Root: " + chordRoot + " TPC:" + getTPCByNote(chordRoot));
+                            log("Extension: " + chordExtension);
+                            log("Bass: " + chordBass + " TPC:" + getTPCByNote(chordBass));
+                                                        
+                            if (doubleAccidentalsCheckCH.checked == true){
+                                if (chordRootTPC >= -1 && chordRootTPC <= 5) { //Check for doubleFlats
+                                    chordRootTPC = chordRootTPC + 12;
+                                } else if (chordRootTPC >= 27 && chordRootTPC <= 33) { //Check for doubleSharps
+                                    chordRootTPC = chordRootTPC - 12;
+                                }
+
+                                if (chordBassTPC >= -1 && chordBassTPC <= 5) { //Check for doubleFlats
+                                    chordBassTPC = chordBassTPC + 12;
+                                } else if (chordBassTPC >= 27 && chordBassTPC <= 33) { //Check for doubleSharps
+                                    chordBassTPC = chordBassTPC - 12;
+                                }
+                            }
+
+                            if ((chordRootTPC >= 6 && chordRootTPC <= 12) && (flatListCH.indexOf(chordRootTPC) !== -1)) { //Check for flats
+                                chordRootTPC = chordRootTPC + 12;
+                            } else if ((chordRootTPC >= 20 && chordRootTPC <= 26) && (sharpListCH.indexOf(chordRootTPC) !== -1)) { //Check for sharps
+                                chordRootTPC = chordRootTPC - 12;
+                            }
+
+                            if ((chordBassTPC >= 6 && chordBassTPC <= 12) && (flatListCH.indexOf(chordBassTPC) !== -1)) { //Check for flats
+                                chordBassTPC = chordBassTPC + 12;
+                            } else if ((chordBassTPC >= 20 && chordBassTPC <= 26) && (sharpListCH.indexOf(chordBassTPC) !== -1)) { //Check for sharps
+                                chordBassTPC = chordBassTPC - 12;
+                            }
+
+
+
+                            var chordRoot = getNoteByTPC(chordRootTPC); // Convert root TPC to note
+                            var chordBass = getNoteByTPC(chordBassTPC); // Convert bass TPC to note (if applicable)
+
+                            if (chordBass) {
+                                scoreElement.text = chordRoot + chordExtension + "/" + chordBass;
+                            } else {
+                                scoreElement.text = chordRoot + chordExtension;
+                            }
+
+                            log("Reassembled chord: " + scoreElement.text);
+
+
+                            // var enharmFind = "";
+                            // var enharmReplace = "";
+
 
                             //check and replace double sharps
-                            var i = 0;
-                            while ((chordText.search("##") > -1) && (i < doublesharpListCH.length)) {
+                            // var i = 0;
+                            // while ((chordText.search(/\b##\b/) > -1) && (i < doubleSharpListCH.length) && doubleAccidentalsCheckCH.checked == true) {
+                            //     enharmFind = new RegExp("\\b" + doubleSharpListCH[i][0] + "\\b", "gi");
+                            //     enharmReplace = doubleSharpListCH[i][1];
 
-                                    enharmFind = RegExp(doublesharpListCH[i][0], 'gi'); //make a regular exppression for a case-insensitive replace call
-                                    enharmReplace = doublesharpListCH[i][1];
+                            //     log("Checking chord " + chordText + " for match: " + doubleSharpListCH[i][0] + " – " + enharmReplace);
 
-                                    log ("Checking chord " + chordText + " for match: " + doublesharpListCH[i][0] + " – " + enharmReplace);        
+                            //     chordText = chordText.replace(enharmFind, enharmReplace);
+                            //     scoreElement.text = chordText;
 
-                                    chordText = chordText.replace(enharmFind, enharmReplace);
-                                    scoreElement.text = chordText;
-
-                                    ++i;
-                            }
+                            //     ++i;
+                            // }
                             
-                            // check and replace double flats
-                            i = 0;
-                            while ((chordText.search("bb") > -1) && (i < doubleflatListCH.length)) {
+                            // // check and replace double flats
+                            // i = 0;
+                            // while ((chordText.search(/\bbb\b/) > -1) && (i < doubleFlatListCH.length) && doubleAccidentalsCheckCH.checked == true) {
 
-                                    enharmFind = RegExp(doubleflatListCH[i][0], 'gi');
-                                    enharmReplace = doubleflatListCH[i][1];
+                            //         enharmFind = RegExp("\\b" + doubleFlatListCH[i][0] + "\\b", 'gi');
+                            //         enharmReplace = doubleFlatListCH[i][1];
 
-                                    log ("Checking chord " + chordText + " for match: " + doubleflatListCH[i][0] + " – " + enharmReplace);        
+                            //         log ("Checking chord " + chordText + " for match: " + doubleFlatListCH[i][0] + " – " + enharmReplace);        
 
-                                    chordText = chordText.replace(enharmFind, enharmReplace);
-                                    scoreElement.text = chordText;
+                            //         chordText = chordText.replace(enharmFind, enharmReplace);
+                            //         scoreElement.text = chordText;
 
-                                    ++i;
-                            }
+                            //         ++i;
+                            // }
 
 
                             // decide what to check first – flats or sharps
 
                             //check and replace sharps
-                            i = 0;
+                            // i = 0;
 
-                            if ((chordText.substr(1,1) == "#" || chordText.substr(chordText.length - 1,1) == "#")) {
+                            // if ((chordText.substr(1,1) == "#" || chordText.substr(chordText.length - 1,1) == "#")) {
                             
-                                while (i < sharpListCH.length) {
+                            //     while (i < sharpListCH.length) {
+                            //         enharmFind = new RegExp("\\b" + sharpListCH[i][0] + "\\b", "gi");
+                            //         enharmReplace = sharpListCH[i][1];
 
-                                        enharmFind = RegExp(sharpListCH[i][0], 'gi');
-                                        enharmReplace = sharpListCH[i][1];
+                            //         log("Checking chord " + chordText + " for match: " + sharpListCH[i][0] + " – " + enharmReplace);
 
-                                        log ("Checking chord " + chordText + " for match: " + sharpListCH[i][0] + " – " + enharmReplace);        
+                            //         chordText = chordText.replace(enharmFind, enharmReplace);
+                            //         scoreElement.text = chordText;
 
-                                        chordText = chordText.replace(enharmFind, enharmReplace);
-                                        scoreElement.text = chordText;
+                            //         ++i;
+                            //     }
 
-                                        ++i;
-                                }
+                            // //check and replace flats
+                            // } else if ((chordText.substr(1,1) == "b" || chordText.substr(chordText.length - 1,1) == "b")) {
+                            //     while (i < flatListCH.length) {
+                            //         enharmFind = new RegExp("\\b" + flatListCH[i][0] + "\\b", "gi");
+                            //         enharmReplace = flatListCH[i][1];
 
-                            //check and replace flats
-                            } else if ((chordText.substr(1,1) == "b" || chordText.substr(chordText.length - 1,1) == "b")) {
-                                while ((i < flatListCH.length)) {
+                            //         log("Checking chord " + chordText + " for match: " + flatListCH[i][0] + " – " + enharmReplace);
 
-                                    enharmFind = RegExp(flatListCH[i][0], "gi");
-                                    enharmReplace = flatListCH[i][1];
+                            //         chordText = chordText.replace(enharmFind, enharmReplace);
+                            //         scoreElement.text = chordText;
 
-                                    log ("Checking chord " + chordText + " for match: " + flatListCH[i][0] + " – " + enharmReplace);        
-
-                                    chordText = chordText.replace(enharmFind, enharmReplace, 0);
-                                    scoreElement.text = chordText;
-
-                                    ++i;
-                                }
-                            }                
+                            //         ++i;
+                            //     }
+                            // }                
                         } else if (scoreElement.type == Element.NOTE) { // If element is of type NOTE - respell  notes
                             var note = scoreElement;
 
                             if (doubleAccidentalsCheckNT.checked == true){
-                                if (scoreElement.tpc >= -1 && scoreElement.tpc <= 5) { //Check for doubleFlats
+                                if (scoreElement.tpc >= -1 && scoreElement.tpc <= 5) {//Check for doubleFlats
                                     scoreElement.tpc = scoreElement.tpc + 12;
-                                } else if (scoreElement.tpc >= 27 && scoreElement.tpc <= 33) { //Check for doubleSharps
+                                } else if (scoreElement.tpc >= 27 && scoreElement.tpc <= 33) {//Check for doubleSharps
                                     scoreElement.tpc = scoreElement.tpc - 12;
                                 }
                             }

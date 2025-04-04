@@ -1,3 +1,5 @@
+// qmllint disable
+
 import MuseScore 3.0
 import QtQuick 2.9
 

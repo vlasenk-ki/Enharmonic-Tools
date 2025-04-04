@@ -16,7 +16,7 @@ MuseScore {
         console.log("Enharmonic Tools plugin loaded.");
     }
 
-    property bool debug: true // Global flag to enable or disable logging
+    property bool debug: false // Global flag to enable or disable logging
 
     function log(message) {
         if (debug) {

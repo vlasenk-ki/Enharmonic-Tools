@@ -16,7 +16,7 @@ MuseScore {
         console.log("Enharmonic Tools plugin loaded.");
     }
 
-    property bool debug: false // Global flag to enable or disable logging
+    property bool debug: true // Global flag to enable or disable logging
 
     function log(message) {
         if (debug) {
@@ -145,10 +145,13 @@ MuseScore {
     }
 
     function changeTPCdoubleAcc (tpc, doubleAccChecked) {
+        if (tpc === null) {
+            return tpc; // Return as is if TPC is null
+        }
         if (doubleAccChecked) {
-            if (tpc >= -1 && tpc <= 5) { //Check for doubleFlats
+            if (tpc >= -1 && tpc <= 5) { // Check for double flats
                 tpc += 12;
-            } else if (tpc >= 27 && tpc <= 33) { //Check for doubleSharps
+            } else if (tpc >= 27 && tpc <= 33) { // Check for double sharps
                 tpc -= 12;
             }
         }
@@ -554,6 +557,10 @@ MuseScore {
                             var chordExtension = chordParts.extension;
                             var chordBass = chordParts.bass;
 
+                            log("Chord root: " + chordRoot);
+                            log("Chord extension: " + chordExtension);
+                            log("Chord bass: " + chordBass);
+
                             var chordRootTPC = getTPCByNote(chordRoot);
                             var chordBassTPC = getTPCByNote(chordBass);
 
@@ -564,11 +571,20 @@ MuseScore {
                             chordRootTPC = changeTPCdoubleAcc(chordRootTPC,doubleAccidentalsCheckCH.checked);
                             chordBassTPC = changeTPCdoubleAcc(chordBassTPC,doubleAccidentalsCheckCH.checked);
 
+                            log("Root TPC after double accidental check: " + chordRootTPC);
+                            log("Bass TPC after double accidental check: " + chordBassTPC);
+
                             chordRootTPC = changeTPCsingleAcc(chordRootTPC, flatListCH, sharpListCH);
                             chordBassTPC = changeTPCsingleAcc(chordBassTPC, flatListCH, sharpListCH);
 
+                            log("Root TPC after single accidental check: " + chordRootTPC);
+                            log("Bass TPC after single accidental check: " + chordBassTPC);
+
                             var chordRoot = getNoteByTPC(chordRootTPC);
                             var chordBass = getNoteByTPC(chordBassTPC);
+
+                            log("Root after TPC check: " + chordRoot);
+                            log("Bass after TPC check: " + chordBass);
 
                             scoreElement.text = reassembleChord(chordRoot, chordExtension, chordBass);                        
                         
